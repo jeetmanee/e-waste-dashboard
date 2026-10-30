@@ -1,128 +1,90 @@
-# Nagaland E-Waste Management Tracker
+# India E-Waste Monitoring & Resource Dashboard
 
-A public-facing academic project workspace for organising e-waste research, documents, source references, organisations, activities and deliverables for Nagaland.
+An academic research and data-visualisation platform focused on understanding, tracking and documenting electronic waste (e-waste) management across India.
 
-## Product access model
+The project brings together state-wise e-waste information, research documents, regulatory references and related resources in one accessible platform.
 
-- Anyone can browse the published website.
-- Only authorised project members can upload, edit or delete records.
-- New file uploads default to **private**. A member must explicitly choose **public** to publish a document for general viewing.
-- Supabase Row Level Security enforces access at the database and storage layers. Hiding controls in the interface is not the security boundary.
-- The service-role key must never be added to the browser application or Netlify environment variables.
+## About the Project
 
-## Stack
+Electronic waste is one of the growing environmental challenges in India. Understanding how it is generated, collected, processed and regulated requires information from multiple reports, government publications and research documents.
 
-- React + TypeScript + Vite
-- Tailwind CSS (with project-specific CSS tokens and layout styles)
-- Supabase Auth, Postgres and private Storage
-- PDF.js for PDF reading, page navigation, zoom and text search
-- SheetJS for CSV/XLS/XLSX read-only previews
-- Netlify for hosting and SPA routing
+This project aims to make that information easier to explore through a centralised dashboard and document repository.
 
-## Local development
+Although the initial research included a focus on Nagaland, the platform is designed to support a broader, state-wise view of e-waste management across India.
 
-Requirements: Node.js 22 and npm.
+## Key Features
 
-```bash
-npm install
-cp .env.example .env.local
-npm run dev
-```
+- **State-wise E-Waste Tracker** — Explore available e-waste information across Indian states.
+- **Data Overview** — View key indicators and available statistics through dashboard visualisations.
+- **Research Repository** — Access project documents, reports, presentations and supporting resources.
+- **Category-Based Organisation** — Explore information across seven key dimensions of e-waste management.
+- **Search and Filtering** — Find resources using keywords, categories and file types.
+- **Document Previews** — View supported file formats directly through the platform.
+- **Source Documentation** — Keep track of research references and supporting information.
+- **Access-Controlled Management** — Public visitors can explore published content, while authorised project members can manage resources.
 
-Add your Supabase project URL and browser-safe publishable/anon key to `.env.local`:
+## Research Categories
 
-```env
-VITE_SUPABASE_URL=https://YOUR_PROJECT_ID.supabase.co
-VITE_SUPABASE_ANON_KEY=YOUR_SUPABASE_PUBLISHABLE_OR_ANON_KEY
-```
+The dashboard organises e-waste research into seven key categories:
 
-The app can render the public project structure without Supabase configured, but uploads, persistent records, authentication and file viewing require the database connection.
+1. Generation & Inventory
+2. Collection Performance
+3. Formal Recycling & Treatment
+4. Regulatory Compliance
+5. Informal Sector Integration
+6. Environmental & Health Safeguards
+7. Awareness & Outreach
 
-## Supabase setup
+These categories provide a structured framework for examining different aspects of e-waste management.
 
-1. Create a Supabase project.
-2. Open **SQL Editor**.
-3. Run `supabase/migrations/001_workspace_schema.sql` in full.
-4. Run `supabase/seed.sql` to add the five project reference leads, three directory-listed organisation entries and proposed deliverable rows.
-5. Copy the project URL and publishable/anon key into the environment variables.
-6. In Supabase Authentication, invite the first project-member account. Public sign-up is not used.
-7. Add the first member as an administrator using the SQL below.
+## Technology Stack
 
-```sql
-insert into public.project_members (user_id, email, role)
-select id, email, 'admin'
-from auth.users
-where lower(email) = lower('YOUR_EMAIL_ADDRESS')
-on conflict (user_id) do update set role = 'admin', email = excluded.email;
-```
+| Component | Technology |
+|---|---|
+| Frontend | React, TypeScript |
+| Build Tool | Vite |
+| Styling | CSS |
+| Backend & Database | Supabase |
+| Authentication | Supabase Auth |
+| File Storage | Supabase Storage |
+| Document Processing | PDF.js, SheetJS |
+| Hosting | Netlify |
 
-To invite another person, use Supabase Authentication's invite flow, then add their user as an editor:
+## Data Sources & Methodology
 
-```sql
-insert into public.project_members (user_id, email, role)
-select id, email, 'editor'
-from auth.users
-where lower(email) = lower('MEMBER_EMAIL_ADDRESS')
-on conflict (user_id) do update set role = 'editor', email = excluded.email;
-```
+The project uses publicly available information, research publications, government documents and other relevant references.
 
-The first administrator can later be promoted or removed using the Supabase SQL editor. Only a project member can reach the write paths, and only an administrator can manage the member list.
+Data is presented with attention to its original source, reporting period and terminology.
 
-### Storage
+**Important data considerations:**
 
-The migration creates a **private** `project-files` bucket with a 100 MiB per-file limit and an allow-list of expected document types. Storage policies permit:
+- Reported generation and collection quantities are not interchangeable.
+- State-wise figures may differ in reporting methodology, coverage and reference period.
+- Missing information should not be interpreted as zero activity.
+- Directory listings of collection or recycling organisations should not automatically be treated as independently verified operational facilities.
+- Where source records are inconsistent or incomplete, the dashboard should identify the limitation rather than present an unsupported conclusion.
 
-- Read access to a file when its matching `documents` row is explicitly `visibility = 'public'`.
-- Read access to private project files for authorised project members.
-- Upload, update and delete only for authorised project members.
+The platform is intended as a research and information resource, not as an official government reporting system.
 
-The application issues time-limited signed URLs for viewing and direct downloads. The browser key is safe to expose only because RLS policies are enabled and correctly configured.
+## Access & Contributions
 
-## Netlify deployment
+The dashboard is intended to be publicly accessible for viewing published information and resources.
 
-1. Push this folder to a private or public Git repository.
-2. In Netlify, choose **Add new site → Import an existing project** and connect the repository.
-3. Netlify should detect Vite. The included `netlify.toml` sets the build command to `npm run build` and publish directory to `dist`.
-4. Add `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` under **Site configuration → Environment variables**.
-5. Deploy. The included redirect rule sends client-side routes back to `index.html`.
+Content management, including document uploads and modifications, is restricted to authorised project members.
 
-## File behaviour
+Research contributions and additional supporting material should include appropriate source information so that the origin of the data can be traced.
 
-- **View** opens the in-app file route in a new browser tab.
-- PDF files use the dedicated PDF.js reader with page controls, zoom, fit-to-width and text search.
-- Images open in an image viewer.
-- CSV/XLS/XLSX files use a read-only spreadsheet preview.
-- DOC/DOCX/PPT/PPTX/ZIP and unsupported formats fall back to a direct original download; the interface does not pretend to preview them.
-- **Download** creates a signed download URL for the original file and does not open the preview route.
-- If a file has no attached original, View and Download are not available.
+## Project Scope
 
-## Seed data and evidence discipline
+The project explores how publicly available e-waste information can be organised into a more accessible and structured digital resource.
 
-The seed file contains brief-supplied public source leads and directory entries. These are labelled as pending verification; they are not represented as uploaded attachments or proof of current facility operation. The two e-waste values remain labelled as **reported quantities** because the NPCB newsletter and CPCB report use different terminology for the same values.
+Its broader objective is to support research, improve information accessibility and encourage a better understanding of e-waste management practices across India.
 
-No district totals, collection rates, recycling capacities, compliance scores, worker counts or completed awareness programmes are fabricated.
+## Disclaimer
 
-## Main routes
+This is an academic project developed for research and educational purposes. The information presented is dependent on the availability and reliability of its referenced sources. It should not be treated as a substitute for official regulatory records, professional environmental assessments or government publications.
 
-- `/` — Overview
-- `/tracker` — Seven workstreams
-- `/tracker/:slug` — Category detail
-- `/files` — File repository
-- `/files/:id` — File details and member metadata editing
-- `/files/:id/preview` — Dedicated preview window
-- `/activities` — Activity log
-- `/research` — Source library
-- `/organisations` — Organisation directory
-- `/organisations/:id` — Organisation details
-- `/deliverables` — Submission archive
-- `/about` — Project context and editable owner details
-- `/settings` — Access and workspace configuration
-- `/login` — Project-member sign-in
+---
 
-## Current implementation notes
-
-- This is the frontend and initial Supabase schema. It is not yet connected to your own Supabase project.
-- The site has no seeded file attachments or activity records. Upload real files to populate those sections.
-- Member invites are deliberately controlled through Supabase Auth; unauthorised public sign-up is not exposed.
-- DOCX/PPTX preview is not implemented; those formats download as originals.
-- A production release should be tested against the actual Supabase project using anonymous and member accounts before the URL is distributed publicly.
+**India E-Waste Monitoring & Resource Dashboard**  
+*An academic initiative towards accessible e-waste information and awareness.*
