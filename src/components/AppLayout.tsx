@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
@@ -6,6 +6,7 @@ import {
   LayoutDashboard, LogIn, Menu, Recycle, Search, Settings, Users, X,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { getProjectSettings, saveProjectSettings } from '../lib/api';
 
 const trackerLinks = [
   ['generation', 'Generation & inventory'], ['collection', 'Collection performance'], ['recycling', 'Formal recycling'],
@@ -16,9 +17,63 @@ export function AppLayout() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [trackerOpen, setTrackerOpen] = useState(true);
   const [query, setQuery] = useState('');
+  const [semester, setSemester] = useState('');
+  const [semesterLoading, setSemesterLoading] = useState(true);
+  const [semesterSaving, setSemesterSaving] = useState(false);
+  const [semesterError, setSemesterError] = useState('');
   const { user, isMember, signOut } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+
+  useEffect(() => {
+    let active = true;
+    const refreshSemester = async () => {
+      try {
+        const settings = await getProjectSettings();
+        if (active) setSemester(settings?.semester || '');
+        if (active) setSemesterError('');
+      } catch {
+        if (active) setSemesterError('Could not load the saved semester.');
+      } finally {
+        if (active) setSemesterLoading(false);
+      }
+    };
+    void refreshSemester();
+    window.addEventListener('project-settings-updated', refreshSemester);
+    return () => {
+      active = false;
+      window.removeEventListener('project-settings-updated', refreshSemester);
+    };
+  }, []);
+
+  const updateSemester = async (nextSemester: string) => {
+    const previousSemester = semester;
+    setSemester(nextSemester);
+    setSemesterSaving(true);
+    setSemesterError('');
+    try {
+      const current = await getProjectSettings();
+      await saveProjectSettings({
+        id: current?.id ?? 1,
+        project_title: current?.project_title || 'Nagaland E-Waste Management Tracker',
+        semester: nextSemester || null,
+        academic_year: current?.academic_year ?? null,
+        project_status: current?.project_status ?? 'In progress',
+        about_text: current?.about_text ?? null,
+        owner_name: current?.owner_name ?? null,
+        owner_programme: current?.owner_programme ?? null,
+        owner_department: current?.owner_department ?? null,
+        institution: current?.institution ?? null,
+        public_contact: current?.public_contact ?? null,
+      });
+      window.dispatchEvent(new Event('project-settings-updated'));
+    } catch (error) {
+      setSemester(previousSemester);
+      setSemesterError(error instanceof Error ? error.message : 'Could not save the semester.');
+    } finally {
+      setSemesterSaving(false);
+    }
+  };
 
   const submitSearch = (event: FormEvent) => {
     event.preventDefault();
@@ -58,7 +113,22 @@ export function AppLayout() {
         <div className="breadcrumbs"><span>Workspace</span><span>/</span><strong>{getSectionName(location.pathname)}</strong></div>
         <div className="topbar-tools">
           <form className="global-search" onSubmit={submitSearch}><Search size={15}/><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search the workspace" aria-label="Search the workspace"/><kbd>⌘ K</kbd></form>
-          <NavLink className="topbar-semester" to="/settings">Semester not set <ChevronDown size={13}/></NavLink>
+          {isMember ? (
+            <select
+              className="topbar-semester"
+              value={semester}
+              disabled={semesterLoading || semesterSaving}
+              onChange={event => void updateSemester(event.target.value)}
+              aria-label="Set active semester"
+              title={semesterError || (semesterSaving ? 'Saving semester…' : 'Choose the active semester')}
+            >
+              <option value="">Semester not set</option>
+              {Array.from({ length: 8 }, (_, index) => `Semester ${index + 1}`).map(option => <option key={option} value={option}>{option}</option>)}
+              {semester && !/^Semester [1-8]$/.test(semester) && <option value={semester}>{semester}</option>}
+            </select>
+          ) : (
+            <NavLink className="topbar-semester" to="/settings">{semester || 'Semester not set'} <ChevronDown size={13}/></NavLink>
+          )}
         </div>
       </header>
       <main className="main-content"><Outlet/></main>

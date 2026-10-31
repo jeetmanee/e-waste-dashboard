@@ -332,7 +332,7 @@ export function WorkspacePage() {
     {toolsTab && <ToolsModal tab={toolsTab} onTabChange={setToolsTab} onClose={() => setToolsTab(null)} sources={sources.data} organisations={organisations.data} activities={activities.data} deliverables={deliverables.data} settings={settings.data} onRefresh={() => { void Promise.all([sources.refresh(), organisations.refresh(), activities.refresh(), deliverables.refresh(), settings.refresh()]); }} />}
   </div>;
 }
-
+  
 function normalise(value: string) { return value.toLowerCase().replace(/[^a-z0-9]/g, ''); }
 function prettyDate(value: string) { if (!value) return 'Date not supplied'; const date = new Date(value); return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }).format(date); }
 function bytesLabel(bytes: number) { if (!bytes) return 'Size not supplied'; if (bytes < 1024) return `${bytes} B`; if (bytes < 1048576) return `${(bytes / 1024).toFixed(0)} KB`; return `${(bytes / 1048576).toFixed(1)} MB`; }

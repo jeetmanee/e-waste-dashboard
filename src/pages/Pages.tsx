@@ -397,14 +397,23 @@ export function AboutPage() {
   const change = (key: string, value: string) => setForm(current => ({ ...current, [key]: value }));
   const save = async (e: FormEvent) => {
     e.preventDefault(); setSaving(true); setMessage('');
-    try { await saveProjectSettings(form); await settings.refresh(); setEditing(false); setMessage('Project details updated.'); }
+    try {
+      await saveProjectSettings(form);
+      await settings.refresh();
+      window.dispatchEvent(new Event('project-settings-updated'));
+      setEditing(false);
+      setMessage('Project details updated.');
+    }
     catch (err) { setMessage(err instanceof Error ? err.message : 'Could not save project details.'); }
     finally { setSaving(false); }
   };
+  useEffect(() => {
+    if (editing) window.setTimeout(() => document.getElementById('project-details-edit-form')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);
+  }, [editing]);
   return <>
     <PageHeader eyebrow="Academic research repository / semester documentation archive" title={form.project_title || 'Nagaland E-Waste Management Tracker'} description="A semester-long academic project workspace for organising research on e-waste management in Nagaland, recording project work and maintaining a traceable documentation archive." action={isMember ? <Button variant="secondary" onClick={() => setEditing(x => !x)}>{editing ? 'Cancel editing' : 'Edit project details'}</Button> : undefined}/>
     {message && <Notice tone={message.includes('updated') ? 'success' : 'warning'}>{message}</Notice>}
-    {editing && isMember && <Panel title="Edit project and owner details"><form className="form-grid" onSubmit={save}>
+    {editing && isMember && <Panel title="Edit project and owner details"><form id="project-details-edit-form" className="form-grid" onSubmit={save}>
       <label className="field-full">Project title<input value={form.project_title} onChange={e => change('project_title', e.target.value)}/></label>
       <label>Semester<input value={form.semester} onChange={e => change('semester', e.target.value)} placeholder="e.g. Semester 5"/></label>
       <label>Academic year<input value={form.academic_year} onChange={e => change('academic_year', e.target.value)} placeholder="e.g. 2026–27"/></label>
@@ -422,18 +431,91 @@ export function AboutPage() {
     <Panel title="Scope"><p className="body-copy">Generation & inventory · Collection performance · Formal recycling & treatment · Regulatory compliance · Informal sector integration · Environmental & health safeguards · Awareness & outreach.</p></Panel>
     <Panel title="Proposed methodology"><div className="method-grid"><div><StatusTag tone="amber">Proposed</StatusTag><strong>Locate & verify</strong><p>Obtain original publications and check definitions, dates and reporting boundaries.</p></div><div><StatusTag tone="amber">Proposed</StatusTag><strong>Organise & document</strong><p>Link evidence to categories, keep notes and distinguish separate source types.</p></div><div><StatusTag tone="amber">Proposed</StatusTag><strong>Review & synthesise</strong><p>Identify supported findings, record gaps and prepare proposed deliverables.</p></div></div></Panel>
     <Notice tone="info"><strong>Expected outcomes / proposed, not achieved.</strong><br/>A source-linked state tracker, an evidence-aware scorecard, a collection connection directory, a research report and a structured semester documentation archive. No research, fieldwork or deliverable completion is claimed.</Notice>
-    <Panel title="Project owner"><div className="profile-placeholder"><div className="profile-photo"><Users size={23}/><small>Photo optional</small></div><div><strong>{form.owner_name || 'Project owner not set'}</strong><p>{[form.owner_programme, form.owner_department, form.institution].filter(Boolean).join(' · ') || 'Your programme · Your department · Your institution'}</p><small className="muted">{form.public_contact || 'No public contact supplied'}</small></div></div>{!form.owner_name && <p className="small muted">Add your details using Edit project details. Personal contact information is optional.</p>}</Panel>
+    <Panel title="Project owner" action={isMember ? <Button size="sm" variant="secondary" onClick={() => setEditing(true)}>Edit owner details</Button> : undefined}><div className="profile-placeholder"><div className="profile-photo"><Users size={23}/><small>Photo optional</small></div><div><strong>{form.owner_name || 'Project owner not set'}</strong><p>{[form.owner_programme, form.owner_department, form.institution].filter(Boolean).join(' · ') || 'Your programme · Your department · Your institution'}</p><small className="muted">{form.public_contact || 'No public contact supplied'}</small></div></div>{!form.owner_name && <p className="small muted">Use Edit owner details to add your name, programme, department and institution. Public contact information is optional.</p>}</Panel>
     <p className="small muted">{settings.error}</p>
   </>;
 }
 
 export function SettingsPage() {
   const {isMember,isAdmin,configured,user,signOut}=useAuth();
+  const settings = useLoad(getProjectSettings, null as ProjectSettingsRecord | null);
+  const [form, setForm] = useState({
+    project_title: 'Nagaland E-Waste Management Tracker',
+    semester: '',
+    academic_year: '',
+    project_status: 'In progress',
+    about_text: '',
+    owner_name: '',
+    owner_programme: '',
+    owner_department: '',
+    institution: '',
+    public_contact: '',
+  });
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!settings.data) return;
+    setForm({
+      project_title: settings.data.project_title || 'Nagaland E-Waste Management Tracker',
+      semester: settings.data.semester || '',
+      academic_year: settings.data.academic_year || '',
+      project_status: settings.data.project_status || 'In progress',
+      about_text: settings.data.about_text || '',
+      owner_name: settings.data.owner_name || '',
+      owner_programme: settings.data.owner_programme || '',
+      owner_department: settings.data.owner_department || '',
+      institution: settings.data.institution || '',
+      public_contact: settings.data.public_contact || '',
+    });
+  }, [settings.data]);
+
+  const change = (key: keyof typeof form, value: string) => setForm(current => ({ ...current, [key]: value }));
+  const save = async (event: FormEvent) => {
+    event.preventDefault();
+    setSaving(true);
+    setMessage('');
+    setError('');
+    try {
+      await saveProjectSettings(form);
+      await settings.refresh();
+      window.dispatchEvent(new Event('project-settings-updated'));
+      setMessage('Project settings saved successfully.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not save project settings.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return <>
-    <PageHeader eyebrow="Workspace configuration" title="Settings" description="Project access, semester information and public archive preferences."/>
+    <PageHeader eyebrow="Workspace configuration" title="Settings" description="Manage project identity, academic context and public archive preferences."/>
     <Panel title="Public access"><Notice tone="info">The website is designed for public browsing. Uploading and editing require an authorised project-member account. Newly uploaded files default to private until a member explicitly publishes them.</Notice></Panel>
     <Panel title="Account"><MetaRow label="Signed in as" value={user?.email||'Not signed in'}/><MetaRow label="Permission" value={isAdmin?'Administrator':isMember?'Project member':'Public visitor'}/><MetaRow label="Database" value={configured?'Supabase connected':'Not configured'}/><div className="button-row">{user?<Button variant="secondary" onClick={()=>void signOut()}>Sign out</Button>:<Link className="button button-primary" to="/login">Member sign in</Link>}</div></Panel>
-    <Panel title="Semester & project settings"><p className="body-copy">Semester, academic year and project deadlines have not been set. These fields are editable once the project schedule is confirmed.</p></Panel>
+    <Panel title="Semester & project details">
+      <p className="body-copy">Set the active semester and academic context here. The semester selector in the top bar is connected to this saved setting.</p>
+      {settings.error && <p className="field-error">{settings.error}</p>}
+      {isMember ? <form className="form-grid" onSubmit={save}>
+        <label className="field-full">Project title<input value={form.project_title} onChange={event => change('project_title', event.target.value)} placeholder="Project title"/></label>
+        <label>Semester<select value={form.semester} onChange={event => change('semester', event.target.value)}>
+          <option value="">Select semester</option>
+          {Array.from({ length: 8 }, (_, index) => `Semester ${index + 1}`).map(option => <option key={option} value={option}>{option}</option>)}
+          {form.semester && !/^Semester [1-8]$/.test(form.semester) && <option value={form.semester}>{form.semester}</option>}
+        </select></label>
+        <label>Academic year<input value={form.academic_year} onChange={event => change('academic_year', event.target.value)} placeholder="e.g. 2026–27"/></label>
+        <label>Project status<select value={form.project_status} onChange={event => change('project_status', event.target.value)}><option>Planning</option><option>In progress</option><option>Under review</option><option>Completed</option><option>On hold</option></select></label>
+        <label>Institution<input value={form.institution} onChange={event => change('institution', event.target.value)} placeholder="Your institution"/></label>
+        <label>Project owner<input value={form.owner_name} onChange={event => change('owner_name', event.target.value)} placeholder="Your name"/></label>
+        <label>Programme<input value={form.owner_programme} onChange={event => change('owner_programme', event.target.value)} placeholder="e.g. B.Tech Computer Engineering"/></label>
+        <label>Department<input value={form.owner_department} onChange={event => change('owner_department', event.target.value)} placeholder="e.g. Computer Engineering"/></label>
+        <label>Public contact (optional)<input value={form.public_contact} onChange={event => change('public_contact', event.target.value)} placeholder="Optional public email"/></label>
+        <label className="field-full">Project overview<textarea rows={3} value={form.about_text} onChange={event => change('about_text', event.target.value)} placeholder="Briefly describe the project."/></label>
+        {message && <Notice tone="success">{message}</Notice>}
+        {error && <p className="field-error field-full">{error}</p>}
+        <div className="field-full button-row"><span className="small muted">Only authorised project members can edit these details. Public contact is optional.</span><Button type="submit" disabled={saving}>{saving ? 'Saving…' : 'Save project details'}</Button></div>
+      </form> : <Notice tone="info">Sign in with an authorised project-member account to edit semester and project-owner details.</Notice>}
+    </Panel>
     <Panel title="Deployment setup"><ol className="next-list"><li>Create a Supabase project and run the SQL migration included with this codebase.</li><li>Add the Supabase URL and publishable/anon key to Netlify environment variables.</li><li>Invite project members and add their user IDs to the project_members table.</li><li>Deploy the Vite build on Netlify.</li></ol></Panel>
   </>;
 }
